@@ -1,13 +1,10 @@
 from fastapi import FastAPI, Request, Depends,HTTPException,status
 import re
 from core.url import extract
-from pydantic import BaseModel
+from models import RequestModel
 app = FastAPI()
 
 accept_regax = re.compile(r'^(?:application|text)\/(?:json|plain)$')
-
-class UrlRequest(BaseModel):
-    url: str
 
 @app.get("/")
 def read_root():
@@ -23,11 +20,11 @@ async def validate_headers(request:Request):
     
 
 @app.post('/',dependencies=[Depends(validate_headers)])
-def home(data:UrlRequest):
+def home(data:RequestModel):
     # checks for host 
     parsed = extract(data.url)
-    print('parsed',parsed)
     if "error" in parsed:
         raise HTTPException(status.HTTP_400_BAD_REQUEST,'error parsing url')
     
-    return {"url": data.url}
+    return ""
+

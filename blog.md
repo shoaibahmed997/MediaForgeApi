@@ -277,7 +277,10 @@ we import urlparse, urlunparse,quote,parse_qs from urllib.parse
 - quote -> encodeURIComponent equivalent.
 - parse_qs -> parses url query params (query strings)
 
-now onto the cleanUrl func.
+now onto the cleanUrl func. this is also simple it just cleans the url returned by alias url and strips away any tracking or non essential query param
+now in the normalize function we attach the alias and clean url funcs. so whenever we get an incoming request we validate and transformt the url.
+
+# day 2.
 
 ## helper functions
 

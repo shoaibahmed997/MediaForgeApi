@@ -1,6 +1,7 @@
 import tldextract
 from urllib.parse import urlparse, urlunparse,quote,parse_qs
 from core.service_config import services
+from core.utils import get_service_from_url,pattern_to_regex
 import re
 def get_host_if_valid(url:str):
     result = tldextract.extract(url=url)
@@ -10,38 +11,38 @@ def get_host_if_valid(url:str):
     return result.domain
 
 
-def extract(url):
-    if isinstance(url,str):
-        parsed_url = urlparse(url)
-    else:
-        parsed_url = url
-    host = get_host_if_valid(url)
-    if not host:
-        return {"error":"Link.invalid"}
+def extract(url:str):
+    service = get_service_from_url(url)
+    print(f"  Service detected: {service}")
     
-    query_path = parsed_url.path.lstrip("/") + ( "?" + parsed_url.query if parsed_url.query else "")
-    print('query path',query_path)
-    pattern_match = None
-    for pattern in services[host]["patterns"]:
-        match = re.search(pattern,query_path)
-        print('pattern',pattern)
+    if not service:
+        return("Result: {'error': 'link.invalid'}")
+    
+    parsed = urlparse(url)
+    path_part = parsed.path.lstrip("/")
+    query_part = f"?{parsed.query}" if parsed.query else ""
+    match_input = path_part + query_part
+    
+    service_config = services[service]
+    patterns = service_config.get("patterns",[])
+
+    for pattern in patterns:
+        regax_str = pattern_to_regex(pattern)
+        match = re.match(regax_str,match_input)
         if match:
-            pattern_match = match
-            break
-    print('pattern match',pattern_match)
-    if not pattern_match:
-        return {
-            "error":"link.unsupported",
-            "context":{
-                "service": host
+            return {
+                "host":service,
+                "patternMatch":match.groupdict()
             }
-        }
     
     return {
-        "host":host,
-        "pattern_Match":pattern_match.groupdict() if pattern_match else None
+        "error": "link.unsupported",
+        "context": {
+            "service": service  # Could add friendly name here if desired
+        }
     }
 
+    
 
 def parse_domain(hostname:str) -> dict:
     extracted = tldextract.extract(hostname)
@@ -78,19 +79,18 @@ def alias_url(url:str) -> str:
     host = domain_info["sld"]
     
     parts = [p for p in parsed_url.path.split("/") if p] 
-    new_query = "",
 
     match host:
         case "youtube":
             if parsed_url.path.startswith("/live/") or parsed_url.path.startswith("/shorts/"):
                 # parts = ["shorts","vgksle"] or ["live","jsdlkf"] no empty segment since we remove it above.
                 if len(parts) >=2:
-                    video_id = parts[1]
+                    video_id = quote(parts[1],safe="")
                     return f"https://youtube.com/watch?v={video_id}"
         
         case "youtu":
-            if parsed_url.hostname == "youtu.be" and len(parts) >=2:
-                video_id = parts[1]
+            if parsed_url.hostname == "youtu.be" and len(parts) >=1:
+                video_id = quote(parts[0],safe="")
                 return f"https://youtube.com/watch?v{video_id}"
         # ─────────────────────────────────────
         # Pinterest: pin.it/ID → pinterest.com/url_shortener/ID
@@ -238,12 +238,73 @@ def alias_url(url:str) -> str:
     # ─────────────────────────────────────────────────────────────
     return url
             
-
-
-
-
-
-
+def clean_url(url: str) -> str:
+    """
+    Strip tracking params, fragments, credentials, ports.
+    Keep only essential query params for specific services.
+    """
+    parsed = urlparse(url)
+    hostname = parsed.hostname or ""
+    
+    if not hostname:
+        return url  
+    
+    domain_info = parse_domain(hostname)
+    host = domain_info["sld"] 
+    
+    final_query = ""
+    
+    # ─────────────────────────────────────
+    # Service-specific query param handling
+    # ─────────────────────────────────────
+    
+    if host == "pinterest":
+        parsed = parsed._replace(netloc="pinterest.com")
+        
+    elif host == "vk":
+        if "/clip" in parsed.path:
+            z_val = _get_query_param(url, "z")
+            if z_val:
+                final_query = f"z={quote(z_val, safe='')}"
+                
+    elif host == "youtube":
+        v_val = _get_query_param(url, "v")
+        if v_val:
+            final_query = f"v={quote(v_val, safe='')}"
+            
+    elif host in ("bilibili", "rutube"):
+        p_val = _get_query_param(url, "p")
+        if p_val:
+            final_query = f"p={quote(p_val, safe='')}"
+            
+    elif host == "twitter":
+        post_id = _get_query_param(url, "post_id")
+        if post_id:
+            final_query = f"post_id={quote(post_id, safe='')}"
+            
+    
+    # ─────────────────────────────────────
+    # Rebuild URL with cleaned components
+    # ─────────────────────────────────────
+    
+    clean_netloc = hostname 
+    
+    clean_path = parsed.path
+    if clean_path.endswith("/") and clean_path != "/":
+        clean_path = clean_path.rstrip("/")
+    
+    cleaned = urlunparse((
+        parsed.scheme,
+        clean_netloc,
+        clean_path,
+        "",          
+        final_query, 
+        ""           
+    ))
+    
+    return cleaned
 
 def normalise_url(url:str)->str:
-    return url
+    aliased_url = alias_url(url)
+    cleaned_url = clean_url(aliased_url)
+    return cleaned_url
