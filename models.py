@@ -47,7 +47,9 @@ class RequestModel(BaseModel):
         """
         Runs before type validation
         Purpose: 
-        1. will decide.
+        1. strips the url of whitespaces
+        2. checks for aliases and transform the url 
+        3. strips away tracking and non essential query params
         """
         try:
             return normalise_url(value.strip())

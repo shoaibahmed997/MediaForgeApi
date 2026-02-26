@@ -282,6 +282,67 @@ now in the normalize function we attach the alias and clean url funcs. so whenev
 
 # day 2.
 
+the extract function was a bit tricky. the problem was creating a regax function for the patterns.
+in js you simply do the string.match() but in python you have to use the regax and for the i had to create a util function that will take the pattern from the service config file and create a regax out of this. below is an example for that
+
+```
+"patterns": [
+            "watch?v=:id",
+            "embed/:id",
+            "watch/:id",
+            "v/:id"
+        ],
+```
+
+after some dabbling i found a naive way to do this. here is the code below. hopefully i will improve this
+
+```
+def pattern_to_regex(pattern: str) -> str:
+    regex = ""
+    in_query = False
+    i = 0
+
+    while i < len(pattern):
+        char = pattern[i]
+
+        if char == '?' and not in_query:
+            regex += r'\?'
+            in_query = True
+            i += 1
+            continue
+
+        if char == ':':
+            param_name = ""
+            j = i + 1
+            while j < len(pattern) and pattern[j] not in '/?&#':
+                param_name += pattern[j]
+                j += 1
+
+            if not param_name:
+                regex += re.escape(char)
+                i += 1
+                continue
+
+            if in_query:
+                regex += f"(?P<{param_name}>[^&]+)"
+            else:
+                regex += f"(?P<{param_name}>[^/]+)"
+
+            i = j
+            continue
+
+        if char in '.^$*+{}[]\\|()':
+            regex += '\\' + char
+        else:
+            regex += char
+
+        i += 1
+
+    return f"^{regex}"
+```
+
+maybe there is a better way to handle this but for now i will stick to this as it is working for now.
+
 ## helper functions
 
 if we keep digging the main post request we have some helper functions that doese the processing of url in that there is one lib called psl -> public suffix list. for this they are using @imput/psl but for our usecase we will use tldextact.
