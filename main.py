@@ -1,6 +1,6 @@
-from fastapi import FastAPI, Request, Response, Depends,HTTPException,status
+from fastapi import FastAPI, Request, Depends,HTTPException,status
 import re
-from url import get_host_if_valid,extract
+from core.url import extract
 from pydantic import BaseModel
 app = FastAPI()
 
