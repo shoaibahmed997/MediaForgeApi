@@ -91,3 +91,14 @@ def home(request:Request,response:Response):
 in fastapi we need to raise HTTPException to return an error response, we can't return a custom response like in express. this is because fastapi uses the status code and detail from the exception to generate the response.
 
 we will continue with the rest of post function and add the necesssary middleware functions in the next few commits.
+
+## helper functions
+
+if we keep digging the main post request we have some helper functions that doese the processing of url in that there is one lib called psl -> public suffix list. for this they are using @imput/psl but for our usecase we will use tldextact.
+what this lib does it is extract domain info from a public list of domains.
+
+#### get_host_if_valid
+
+#### extract
+
+#### services_config
