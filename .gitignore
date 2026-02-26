@@ -19,7 +19,9 @@ docker-compose.yml
 
 # ide
 .vscode
-__pycache__/
 *.py[cod]
-__pycache__/main.cpython-311.pyc
-__pycache__/url.cpython-311.pyc
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+

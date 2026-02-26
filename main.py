@@ -26,5 +26,5 @@ def home(data:RequestModel):
     if "error" in parsed:
         raise HTTPException(status.HTTP_400_BAD_REQUEST,'error parsing url')
     
-    return ""
+    return parsed
 
